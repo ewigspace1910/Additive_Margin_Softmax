@@ -2,12 +2,11 @@
 
 ##Table of Content
  1. **Softmax Loss** *[done]*
- 2. L-Softmax *[todo]*
- 3. **Cosloss** *[done]*
- 4. **Arcloss** *[done]*
- 5. **Li-Arcloss** *[done]*
- 6. Sphereloss *[todo]*
- 7. Magloss *[todo]*
+ 2. **Cosloss** *[done]*
+ 3. **Arcloss** *[done]*
+ 4. **Li-Arcloss** *[done]*
+ 5. Sphereloss *[todo]*
+ 6. Magloss *[todo]*
 
 
 ##References

@@ -14,7 +14,10 @@ from modules.dataloader import get_DataLoader, TrainDataset, ValidDataset
 from modules.metrics import CosMarginProduct, ArcMarginProduct, NormalFCLayer, AirMarginProduct
 from modules.evaluate import evaluate_model
 from modules.focal_loss import FocalLoss
+from modules.utils import set_memory_growth
 
+os.environ['TF_XLA_FLAGS'] = '--tf_xla_enable_xla_devices'
+set_memory_growth()
 
 def get_args():
     parser = argparse.ArgumentParser()
