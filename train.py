@@ -59,10 +59,10 @@ def main(cfg, n_workers=2):
     #get backbone
     if cfg['backbone'].lower() == 'resnet50':
         print("use ir-resnet50")
-        backbone = Backbone(50, 0.4, mode='ir_se')
+        backbone = Backbone(50, 0.4, embedding_size=cfg['embd_size'], mode='ir_se')
     elif cfg['backbone'].lower() == 'resnet100':
         print("use ir-resnet100")
-        backbone = Backbone(100, 0.4, mode='ir_se')
+        backbone = Backbone(100, 0.4,embedding_size=cfg['embd_size'], mode='ir_se')
     else:
         print("use mobile FaceNet")
         backbone = MobileFaceNet(cfg['embd_size'])

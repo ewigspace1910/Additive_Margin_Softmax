@@ -20,17 +20,17 @@ logits_margin: 0.5
 #optimizer
 optimizer: SGD
 momentum: 0.9
-base_lr : 0.1
+base_lr : 0.025
 lr_steps: [18, 26, 29] #epoch
 
 ##--------------------
 ## run params
-batch_size: 512
+batch_size: 64
 init_epoch: 0
 epoch_num: 35
 step_per_save: 100
 # paths <SHOULD JUST CHANGE TRAIN DATA!>
 
-train_data: "/home/k64t/face_recognition/data/images_list.txt"
-valid_data: {"lfw":"/home/k64t/face_recognition/data/lfw_pair.txt", 'cf_pf':"/home/k64t/face_recognition/data/cfpf_pair.txt", 'age30':"/home/k64t/face_recognition/data/age30_pair.txt"}
+train_data: "./data/images_list.txt"
+valid_data: {"lfw":"./data/lfw_pair.txt"}
 test_data: ""

@@ -111,7 +111,7 @@ def get_blocks(num_layers):
     return blocks
 
 class Backbone(Module):
-    def __init__(self, num_layers, drop_ratio, mode='ir'):
+    def __init__(self, num_layers, drop_ratio, embedding_size=512, mode='ir'):
         super(Backbone, self).__init__()
         assert num_layers in [50, 100, 152], 'num_layers should be 50,100, or 152'
         assert mode in ['ir', 'ir_se'], 'mode should be ir or ir_se'
@@ -126,8 +126,8 @@ class Backbone(Module):
         self.output_layer = Sequential(BatchNorm2d(512), 
                                        Dropout(drop_ratio),
                                        Flatten(),
-                                       Linear(512 * 7 * 7, 512),
-                                       BatchNorm1d(512))
+                                       Linear(512 * 7 * 7, embedding_size),
+                                       BatchNorm1d(embedding_size))
         modules = []
         for block in blocks:
             for bottleneck in block:
@@ -141,7 +141,7 @@ class Backbone(Module):
         x = self.input_layer(x)
         x = self.body(x)
         x = self.output_layer(x)
-        return l2_norm(x)
+        return x
 
 ##################################  MobileFaceNet #############################################################
     
@@ -239,4 +239,4 @@ class MobileFaceNet(Module):
         out = self.linear(out)
 
         out = self.bn(out)
-        return l2_norm(out)
+        return out
