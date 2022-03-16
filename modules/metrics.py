@@ -115,12 +115,56 @@ class CosMarginProduct(nn.Module):
 
         return output
 
-    def __repr__(self):
-        return self.__class__.__name__ + '(' \
-               + 'in_features=' + str(self.in_features) \
-               + ', out_features=' + str(self.out_features) \
-               + ', s=' + str(self.s) \
-               + ', m=' + str(self.m) + ')'
+
+############SphereFaceLoss################
+class SphereMarginProduct(nn.Module):
+    def __init__(self, in_features, out_features, m=4, base=1000.0, gamma=0.0001, power=2, lambda_min=5.0, iter=0):
+        super(SphereMarginProduct, self).__init__()
+        assert m in [1, 2, 3, 4], 'margin should be 1, 2, 3 or 4'
+        self.in_features = in_features
+        self.out_features = out_features
+        self.m = m
+        self.base = base
+        self.gamma = gamma
+        self.power = power
+        self.lambda_min = lambda_min
+        self.iter = 0
+        self.weight = Parameter(torch.Tensor(out_features, in_features))
+        nn.init.xavier_uniform_(self.weight)
+
+        # duplication formula
+        self.margin_formula = [
+            lambda x : x ** 0,
+            lambda x : x ** 1,
+            lambda x : 2 * x ** 2 - 1,
+            lambda x : 4 * x ** 3 - 3 * x,
+            lambda x : 8 * x ** 4 - 8 * x ** 2 + 1,
+            lambda x : 16 * x ** 5 - 20 * x ** 3 + 5 * x
+        ]
+
+    def forward(self, input, label):
+        self.iter += 1
+        self.cur_lambda = max(self.lambda_min, self.base * (1 + self.gamma * self.iter) ** (-1 * self.power))
+
+        cos_theta = F.linear(F.normalize(input), F.normalize(self.weight))
+        cos_theta = cos_theta.clamp(-1,1)
+
+        cos_m_theta = self.margin_formula[self.m](cos_theta)
+        theta = torch.acos(cos_theta)
+        k = ((self.m * theta) / math.pi).floor()
+        phi_theta = ((-1.0) ** k) * cos_m_theta - 2 * k
+        phi_theta_ = (self.cur_lambda * cos_theta + phi_theta) / (1 + self.cur_lambda)
+        norm_of_feature = torch.norm(input, 2, 1)
+
+        one_hot = torch.zeros_like(cos_theta)
+
+        one_hot.scatter_(1, label.view(-1, 1), 1)
+
+        output = one_hot * phi_theta_ + (1 - one_hot) * cos_theta
+        output *= norm_of_feature.view(-1, 1)
+
+        return output
+
 
 ###########MagFace##############
 class MagMarginProduct(nn.Module):
