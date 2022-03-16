@@ -12,4 +12,7 @@ a.out
 *.a78
 
 __python__
+__pycache__
 data/
+venv/
+save/

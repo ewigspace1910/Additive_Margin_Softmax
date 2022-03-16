@@ -11,7 +11,7 @@ from torch.utils.tensorboard import SummaryWriter
 
 from modules.models import MobileFaceNet, Backbone
 from modules.dataloader import get_DataLoader, TrainDataset, ValidDataset
-from modules.metrics import CosMarginProduct, ArcMarginProduct, NormalFCLayer, AirMarginProduct
+from modules.metrics import CosMarginProduct, ArcMarginProduct, AirMarginProduct
 from modules.evaluate import evaluate_model
 from modules.focal_loss import FocalLoss
 from modules.utils import set_memory_growth
@@ -59,15 +59,16 @@ def main(cfg, n_workers=2):
     #get backbone
     if cfg['backbone'].lower() == 'resnet50':
         print("use ir-resnet50")
-        backbone = Backbone(50, 0.4, embedding_size=cfg['embd_size'], mode='ir_se')
+        backbone = Backbone(50, 0.5, embedding_size=cfg['embd_size'], mode='ir_se')
     elif cfg['backbone'].lower() == 'resnet100':
         print("use ir-resnet100")
-        backbone = Backbone(100, 0.4,embedding_size=cfg['embd_size'], mode='ir_se')
+        backbone = Backbone(100, 0.5,embedding_size=cfg['embd_size'], mode='ir_se')
     else:
         print("use mobile FaceNet")
         backbone = MobileFaceNet(cfg['embd_size'])
 
     #metrics
+    margin = True
     if cfg['loss'].lower() == 'cosloss':
         print("use Cos-Loss")
         partial_fc = CosMarginProduct(in_features=cfg['embd_size'],
@@ -85,8 +86,8 @@ def main(cfg, n_workers=2):
                                 s=cfg['logits_scale'], m=cfg['logits_margin'])
     else:
         print("No Additative Margin")
-        partial_fc = NormalFCLayer(in_features=cfg['embd_size'],
-                                out_features=cfg['class_num'])
+        partial_fc = torch.nn.Linear(cfg['embd_size'], cfg['class_num'], bias=False)
+        margin = False
     
     #data parapell
     backbone = DataParallel(backbone.to(device))
@@ -98,7 +99,7 @@ def main(cfg, n_workers=2):
                                     lr=cfg['base_lr'], weight_decay=cfg['weight_decay'])
     else:
         optimizer = SGD([{'params': backbone.parameters()}, {'params': partial_fc.parameters()}],
-                                     lr=cfg['base_lr'], weight_decay=cfg['weight_decay'])
+                                    lr=cfg['base_lr'], weight_decay=cfg['weight_decay'], momentum=cfg['momentum'])
     #LossFunction+scheduerLR
     if cfg['criterion'] == 'focal':
         criterion = FocalLoss(gamma=2)
@@ -127,8 +128,9 @@ def main(cfg, n_workers=2):
             inputs = inputs.to(device)
             label = label.to(device).long()
 
-            embds = backbone(inputs)
-            logits = partial_fc(embds, label)
+            logits = backbone(inputs)
+            if margin: logits = partial_fc(logits, label)
+            else: logits = partial_fc(logits)
             loss = criterion(logits, label)
             
             #update metrics

@@ -26,16 +26,16 @@ class TrainDataset(data.Dataset):
 
         if self.is_training:
             self.transforms = T.Compose([
-                T.RandomCrop(self.input_shape[1:]),
-                T.ColorJitter(brightness=.4, hue=.3),
-                T.GaussianBlur(kernel_size=(5, 9), sigma=(0.1, 5)),
+                #T.RandomCrop(self.input_shape[1:]),
+                #T.ColorJitter(brightness=.4, hue=.3),
+                #T.GaussianBlur(kernel_size=(5, 9), sigma=(0.1, 5)),
                 T.RandomHorizontalFlip(),
                 T.ToTensor(),
                 normalize
             ])
         else:
             self.transforms = T.Compose([
-                T.CenterCrop(self.input_shape[1:]),
+                #T.CenterCrop(self.input_shape[1:]),
                 T.ToTensor(),
                 normalize
             ])
@@ -45,7 +45,7 @@ class TrainDataset(data.Dataset):
         img_path = sample
         #x
         data = Image.open(img_path)
-        data = data.convert('RGB') # convert image to monochrome('L') or RGB
+        data = data.convert('RGB')
         data = self.transforms(data)
         #y
         label = np.int32(sample.split("/")[-2])
@@ -72,7 +72,7 @@ class ValidDataset(data.Dataset):
 
         normalize = T.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5))
         self.transforms = T.Compose([
-                T.CenterCrop(self.input_shape[1:]),
+                #T.CenterCrop(self.input_shape[1:]),
                 T.ToTensor(),
                 normalize
             ])
@@ -82,11 +82,11 @@ class ValidDataset(data.Dataset):
 
         #x1
         data1 = Image.open(sample[0])
-        data1 = data1.convert('RGB') # convert image to monochrome('L') or RGB
+        data1 = data1.convert('RGB')
         data1 = self.transforms(data1)
         #x2
         data2 = Image.open(sample[1])
-        data2 = data2.convert('RGB') # convert image to monochrome('L') or RGB
+        data2 = data2.convert('RGB')
         data2 = self.transforms(data2)
         #y
         label = np.int32(sample[2])

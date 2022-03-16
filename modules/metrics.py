@@ -93,7 +93,7 @@ class CosMarginProduct(nn.Module):
         cos(theta) - m
     """
 
-    def __init__(self, in_features, out_features, s=64.0, m=0.40):
+    def __init__(self, in_features, out_features, s=64.0, m=0.35):
         super(CosMarginProduct, self).__init__()
         self.in_features = in_features
         self.out_features = out_features
@@ -125,15 +125,3 @@ class CosMarginProduct(nn.Module):
 ###########MagFace##############
 class MagMarginProduct(nn.Module):
     pass
-
-###########normal softmax##############
-class NormalFCLayer(nn.Module):
-    def __init__(self, in_features, out_features) -> None:
-        super(NormalFCLayer, self).__init__()
-        self.in_features = in_features
-        self.out_features = out_features
-        self.weight = Parameter(torch.FloatTensor(out_features, in_features))
-        nn.init.xavier_uniform_(self.weight)
-        
-    def forward(self, input, label):
-        return F.linear(input, F.normalize(self.weight))
