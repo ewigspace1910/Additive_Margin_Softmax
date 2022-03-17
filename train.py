@@ -53,7 +53,7 @@ def main(cfg, n_workers=2):
         valid_dataset = ValidDataset(data_list_file=cfg['valid_data'][x])
         valid_set[x] = get_DataLoader(valid_dataset,
                                 batch_size=cfg['batch_size'],
-                                shuffle=True,
+                                shuffle=False,
                                 num_workers=n_workers)
 
     #get backbone

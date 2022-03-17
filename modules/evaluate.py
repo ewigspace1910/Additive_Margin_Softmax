@@ -61,6 +61,8 @@ def evaluate_model(model, dataset, device=torch.device('cpu')):
 
         result['issame'].extend(list(is_same))
         result['prob'].extend(list(dist))
+        #print(result)
+        #exit()
     
     thresholds = np.arange(0, 4, 0.01)
     dists = np.array(result['prob'])

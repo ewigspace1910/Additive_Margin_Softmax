@@ -67,7 +67,7 @@ class ValidDataset(data.Dataset):
                 os.path.join(img[1].strip()),
                 int(img[2])] for img in imgs]
                 
-        self.imgs = np.random.permutation(imgs)
+        self.imgs = imgs
         self.size        = len(imgs)
 
         normalize = T.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5))
