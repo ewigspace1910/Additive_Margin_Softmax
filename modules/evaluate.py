@@ -41,9 +41,11 @@ def calculate_roc(thresholds, dists, actual_issame):
     return tprs, fprs, accuracy, best_thresholds
 
 def evaluate_model(model, dataset, device=torch.device('cpu')):
-    result = {'issame': [], 'prob':[]}
-    for img1, img2, is_same in tqdm.tqdm(dataset):
-        is_same = is_same.cpu().data.numpy() == 1
+    dists = np.array([]) #distants
+    labels = np.array([]) #labels
+    
+    for img1, img2, label in tqdm.tqdm(dataset):
+        label = label.cpu().data.numpy() == 1
         img1 = img1.to(device)
         img2 = img2.to(device)
         
@@ -59,15 +61,12 @@ def evaluate_model(model, dataset, device=torch.device('cpu')):
         diff = np.subtract(embds_1, embds_2)
         dist = np.sum(np.square(diff), axis=1)
 
-        result['issame'].extend(list(is_same))
-        result['prob'].extend(list(dist))
-        #print(result)
-        #exit()
+        labels = np.hstack((labels, label))
+        dists  = np.hstack((dists, dist))
+
     
     thresholds = np.arange(0, 4, 0.01)
-    dists = np.array(result['prob'])
-    actual_issame = np.array(result['issame']) 
-    tpr, fpr, acc, best_thresholds = calculate_roc(thresholds, dists, actual_issame)
+    tpr, fpr, acc, best_thresholds = calculate_roc(thresholds, dists, labels)
     return np.mean(acc), acc, best_thresholds
 
 

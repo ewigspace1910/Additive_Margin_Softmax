@@ -162,7 +162,8 @@ def main(cfg, n_workers=2):
         print("-Validate...") 
         with torch.no_grad():
             for x in cfg['valid_data']:
-                acc, _, _ = evaluate_model(backbone, valid_set[x], device=device)
+                _, acc, _ = evaluate_model(backbone, valid_set[x], device=device)
+                acc = max(acc)
                 writer.add_scalar('verification accuracy _ {} dataset'.format(x), acc, e * num_batchs)
                 print('\t--{}\'s accuracy: {:.5f}'.format(x,acc))
             save_model(backbone,  ckpt_path, cfg['model_name'], e)     

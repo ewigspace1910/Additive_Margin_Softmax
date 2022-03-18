@@ -16,7 +16,7 @@ def get_args():
     parser.add_argument("--n", type=int, default=2, help="the number of workers")
     return parser.parse_args()
     
-def test_path(cfg, path, nworker=2):
+def verify(cfg, path, nworker=2):
     valid_set = {}
     for x in cfg['valid_data']:
         valid_dataset = ValidDataset(data_list_file=cfg['valid_data'][x])
@@ -43,7 +43,10 @@ def test_path(cfg, path, nworker=2):
     with torch.no_grad():
         for x in cfg['valid_data']:
             acc, accs, thrs = evaluate_model(backbone, valid_set[x], device=device)
-            print('\t--{}\'s accuracy: {:.5f} \t best threshold: {} \tmax_acc: {:.5f}'.format(x,acc, thrs, np.max(accs)))
+            print('\t--{}\'s max accuracy: {:.5f} \t best threshold: {} \tavg_acc: {:.5f}'.format(x,max(accs), thrs, acc))
+
+def main():
+    pass
 
 if __name__ == "__main__":
     args = get_args()
