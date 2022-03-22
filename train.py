@@ -11,7 +11,7 @@ from torch.utils.tensorboard import SummaryWriter
 
 from modules.models import MobileFaceNet, Backbone
 from modules.dataloader import get_DataLoader, TrainDataset, ValidDataset
-from modules.metrics import CosMarginProduct, ArcMarginProduct, AirMarginProduct
+from modules.metrics import CosMarginProduct, ArcMarginProduct, AirMarginProduct, MagMarginProduct
 from modules.evaluate import evaluate_model
 from modules.focal_loss import FocalLoss
 from modules.utils import set_memory_growth
@@ -84,6 +84,13 @@ def main(cfg, n_workers=2):
         partial_fc = AirMarginProduct(in_features=cfg['embd_size'],
                                 out_features=cfg['class_num'],
                                 s=cfg['logits_scale'], m=cfg['logits_margin'])
+    elif cfg['loss'].lower() == 'magloss':
+        print('use Mag-Loss')
+        partial_fc = MagMarginProduct(in_features=cfg['embd_size'], 
+                                out_features=cfg['class_num'], 
+                                s=cfg['logits_scale'], 
+                                l_a=10, u_a=110, l_m=0.45, u_m=0.8, lambda_g=20)
+
     else:
         print("No Additative Margin")
         partial_fc = torch.nn.Linear(cfg['embd_size'], cfg['class_num'], bias=False)
@@ -131,7 +138,11 @@ def main(cfg, n_workers=2):
             logits = backbone(inputs)
             if margin: logits = partial_fc(logits, label)
             else: logits = partial_fc(logits)
-            loss = criterion(logits, label)
+
+            if len(logits) == 2: 
+                loss = criterion(logits[0], label) + logits[1]
+                logits = logits[0]
+            else: loss = criterion(logits, label)
             
             #update metrics
             total_loss += loss.item()

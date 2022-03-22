@@ -105,11 +105,11 @@ class CosMarginProduct(nn.Module):
     def forward(self, input, label):
         # --------------------------- cos(theta) & phi(theta) ---------------------------
         cos_t = F.linear(F.normalize(input), F.normalize(self.weight, dim=1))
-        phi = cos_t - self.m
+        cos_phi = cos_t - self.m
         # --------------------------- convert label to one-hot ---------------------------
         one_hot = F.one_hot(label, num_classes=self.out_features)
         # -------------torch.where(out_i = {x_i if condition_i else y_i) -------------
-        output = torch.where(one_hot==1, phi, cos_t)
+        output = torch.where(one_hot==1, cos_phi, cos_t)
         output *= self.s
         # print(output)
 
@@ -168,4 +168,54 @@ class SphereMarginProduct(nn.Module):
 
 ###########MagFace##############
 class MagMarginProduct(nn.Module):
-    pass
+    """ implement Magface https://arxiv.org/pdf/2103.06627.pdf"""
+
+    def __init__(self, in_features, out_features, s=64.0, l_a=10, u_a=110, l_m=0.45, u_m=0.8, lambda_g=20):
+        super(MagMarginProduct, self).__init__()
+
+        self.l_a = l_a
+        self.u_a = u_a
+        self.l_m = l_m
+        self.u_m = u_m
+        
+        self.lambda_g = lambda_g
+        self.s = s
+        self.weight = Parameter(torch.FloatTensor(out_features, in_features))
+        nn.init.xavier_uniform_(self.weight)
+        self.eps = 1e-7
+
+    def compute_m(self, a):
+        return (self.u_m - self.l_m) / (self.u_a - self.l_a) * (a - self.l_a) + self.l_m
+
+    def compute_g(self, a):
+        return torch.mean( (1 / self.u_a**2) * a + 1 / a)
+
+    def forward(self, input, label):
+        
+        cos_t = F.linear(F.normalize(input), F.normalize(self.weight, dim=1)).clamp(-1. + self.eps, 1. - self.eps)
+        sin_t = torch.sqrt(1.0 - torch.pow(cos_t, 2))
+
+        # compute additive margin
+        a = torch.norm(input, dim=1, keepdim=True).clamp(self.l_a, self.u_a)
+        m = self.compute_m(a)
+        cos_m, sin_m = torch.cos(m), torch.sin(m)
+
+        g = self.compute_g(a)
+
+        #threshold when phi > 180 
+        threshold = torch.cos(math.pi - cos_m)
+        mm = torch.sin(math.pi - m) * m
+
+        # phi = theta + m(a) => cos(phi)
+        cos_phi = cos_t * cos_m - sin_t * sin_m
+        cos_phi = torch.where(cos_phi > threshold, cos_phi, cos_t - mm)
+
+        # one-hot label
+        one_hot = torch.zeros_like(cos_phi)
+        one_hot.scatter_(1, label.view(-1, 1), 1)
+        # build the output logits
+        output = one_hot * cos_phi + (1.0 - one_hot) * cos_t
+        # feature re-scaling
+        output *= self.s
+
+        return output, self.lambda_g * g
