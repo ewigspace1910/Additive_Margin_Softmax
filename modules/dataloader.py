@@ -27,8 +27,8 @@ class TrainDataset(data.Dataset):
         if self.is_training:
             self.transforms = T.Compose([
                 #T.RandomCrop(self.input_shape[1:]),
-                #T.ColorJitter(brightness=.4, hue=.3),
-                #T.GaussianBlur(kernel_size=(5, 9), sigma=(0.1, 5)),
+                T.ColorJitter(brightness=.4, hue=.3),
+                T.GaussianBlur(kernel_size=(5, 9), sigma=(0.1, 5)),
                 T.RandomHorizontalFlip(),
                 T.ToTensor(),
                 normalize

@@ -53,4 +53,4 @@ if __name__ == "__main__":
     path = "./save/model_ir_se50.pth"
     with open(args.c, 'r') as file:
         config = yaml.load(file, Loader=yaml.Loader)
-    test_path(config, path, nworker=args.n)
+    verify(config, path, nworker=args.n)

@@ -9,15 +9,15 @@ from torch.optim import SGD, Adam
 from torch.optim.lr_scheduler import StepLR, MultiStepLR
 from torch.utils.tensorboard import SummaryWriter
 
-from modules.models import MobileFaceNet, Backbone
+from modules.models import Backbone
 from modules.dataloader import get_DataLoader, TrainDataset, ValidDataset
-from modules.metrics import CosMarginProduct, ArcMarginProduct, AirMarginProduct, MagMarginProduct
+from modules.metrics import CosMarginProduct, ArcMarginProduct, MagMarginProduct
 from modules.evaluate import evaluate_model
 from modules.focal_loss import FocalLoss
-from modules.utils import set_memory_growth
+#from modules.utils import set_memory_growth
 
-os.environ['TF_XLA_FLAGS'] = '--tf_xla_enable_xla_devices'
-set_memory_growth()
+#os.environ['TF_XLA_FLAGS'] = '--tf_xla_enable_xla_devices'
+#set_memory_growth()
 
 def get_args():
     parser = argparse.ArgumentParser()
@@ -58,14 +58,14 @@ def main(cfg, n_workers=2):
 
     #get backbone
     if cfg['backbone'].lower() == 'resnet50':
-        print("use ir-resnet50")
-        backbone = Backbone(50, 0.5, embedding_size=cfg['embd_size'], mode='ir_se')
+        print("use ir-se_Resnet50")
+        backbone = Backbone(50, drop_ratio=cfg['drop_ratio'], embedding_size=cfg['embd_size'], mode='ir_se')
     elif cfg['backbone'].lower() == 'resnet100':
         print("use ir-resnet100")
-        backbone = Backbone(100, 0.5,embedding_size=cfg['embd_size'], mode='ir_se')
+        backbone = Backbone(100, drop_ratio=cfg['drop_ratio'],embedding_size=cfg['embd_size'], mode='ir_se')
     else:
-        print("use mobile FaceNet")
-        backbone = MobileFaceNet(cfg['embd_size'])
+        print("backbone must resnet50, resnet100")
+        exit()
 
     #metrics
     margin = True
@@ -79,18 +79,12 @@ def main(cfg, n_workers=2):
         partial_fc = ArcMarginProduct(in_features=cfg['embd_size'],
                                 out_features=cfg['class_num'],
                                 s=cfg['logits_scale'], m=cfg['logits_margin'])
-    elif cfg['loss'].lower() == 'airloss':
-        print("use L-ArcLoss")
-        partial_fc = AirMarginProduct(in_features=cfg['embd_size'],
-                                out_features=cfg['class_num'],
-                                s=cfg['logits_scale'], m=cfg['logits_margin'])
     elif cfg['loss'].lower() == 'magloss':
         print('use Mag-Loss')
         partial_fc = MagMarginProduct(in_features=cfg['embd_size'], 
                                 out_features=cfg['class_num'], 
                                 s=cfg['logits_scale'], 
                                 l_a=10, u_a=110, l_m=0.45, u_m=0.8, lambda_g=20)
-
     else:
         print("No Additative Margin")
         partial_fc = torch.nn.Linear(cfg['embd_size'], cfg['class_num'], bias=False)
@@ -163,9 +157,6 @@ def main(cfg, n_workers=2):
                             (e-1) * len(trainloader) + num_batchs)
                 writer.add_scalar('learning rate',
                             scheduler.get_last_lr()[0],
-                            (e-1) * len(trainloader) + num_batchs)
-                writer.add_scalar('training accuracy', 
-                            num_correct / num_batchs, 
                             (e-1) * len(trainloader) + num_batchs)
         scheduler.step()         
         #test

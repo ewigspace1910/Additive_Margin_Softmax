@@ -5,42 +5,6 @@ import torch.nn.functional as F
 from torch.nn import Parameter
 import math
 
-###########Air Face##############
-class AirMarginProduct(nn.Module):
-    """fine tune Arcface https://arxiv.org/pdf/1907.12256.pdf :
-        Args:
-            in_features: size of each input sample
-            out_features: size of each output sample
-            s: norm of input feature
-            m: margin
-            cos(pi-(theta + m))
-        """
-    def __init__(self, in_features, out_features, s=64.0, m=0.4):
-        super(AirMarginProduct, self).__init__()
-        self.in_features = in_features
-        self.out_features = out_features
-        self.s = s
-        self.m = m
-        self.weight = Parameter(torch.FloatTensor(out_features, in_features))
-        nn.init.xavier_uniform_(self.weight) #init weight
-        self.eps = 1e-7
-
-    def forward(self, input, label):
-        # --------------------------- cos(theta) & phi(theta) ---------------------------
-        cos_t = F.linear(F.normalize(input), F.normalize(self.weight, dim=1)).clamp(-1. + self.eps, 1. - self.eps)
-        t = torch.arccos(cos_t)
-        phi = math.pi - 2 * t - 2 * self.m
-        not_phi = math.pi - 2 * t
-        # --------------------------- convert label to one-hot ---------------------------
-        one_hot = torch.zeros_like(cos_t)
-        one_hot.scatter_(1, label.view(-1, 1), 1)
-        # -------------torch.where(out_i = {x_i if condition_i else y_i) -------------
-        output = torch.where(one_hot == 1, phi, not_phi)
-        output *= (self.s / math.pi)
-
-        return output
-
-
 ###########ArcFace##############
 class ArcMarginProduct(nn.Module):
     """Implement of large margin arc distance: :
