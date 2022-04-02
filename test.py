@@ -5,7 +5,7 @@ import tqdm
 import torch
 import numpy as np
 from modules.evaluate import evaluate_model, load_model
-from modules.models import MobileFaceNet, Backbone
+from modules.models import Backbone
 from modules.dataloader import get_DataLoader, ValidDataset
 
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device('cpu')
@@ -31,13 +31,10 @@ def verify(cfg, path, nworker=2):
     elif cfg['backbone'].lower() == 'resnet100':
         print("use ir-resnet100")
         backbone = Backbone(100, 0.5,embedding_size=cfg['embd_size'], mode='ir_se')
-    else:
-        print("use mobile FaceNet")
-        backbone = MobileFaceNet(cfg['embd_size'])
+    else: print("error")
     
-    backbone = backbone.to(device)
     load_model(backbone, path)
-    
+    backbone = backbone.to(device)
     backbone.eval()
     print("-Validate...") 
     with torch.no_grad():

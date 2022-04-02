@@ -27,7 +27,7 @@ def get_args():
 
 def save_model(model, save_path, name, iter_cnt):
     save_name = os.path.join(save_path, name + '_' + str(iter_cnt) + '.pth')
-    torch.save(model.state_dict(), save_name)
+    torch.save(model.module.state_dict(), save_name)
     return save_name
 
 def main(cfg, n_workers=2):
@@ -158,7 +158,8 @@ def main(cfg, n_workers=2):
                 writer.add_scalar('learning rate',
                             scheduler.get_last_lr()[0],
                             (e-1) * len(trainloader) + num_batchs)
-        scheduler.step()         
+        scheduler.step() 
+        save_model(backbone,  ckpt_path, cfg['model_name'], e) 
         #test
         backbone.eval()
         print("-Validate...") 
@@ -168,7 +169,7 @@ def main(cfg, n_workers=2):
                 acc = max(acc)
                 writer.add_scalar('verification accuracy _ {} dataset'.format(x), acc, e * num_batchs)
                 print('\t--{}\'s accuracy: {:.5f}'.format(x,acc))
-            save_model(backbone,  ckpt_path, cfg['model_name'], e)     
+                
         print("\t--Train Loss: {:.5f} \n\t--Train accuracy: {:.5f}".format(total_loss / num_batchs, num_correct / cfg['sample_num']))
         print('\t--total time is {:.3f}'.format(time.time()-s))
     writer.close()
