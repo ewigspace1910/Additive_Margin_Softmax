@@ -14,31 +14,21 @@ from modules.dataloader import get_DataLoader, TrainDataset, ValidDataset
 from modules.metrics import CosMarginProduct, ArcMarginProduct, MagMarginProduct
 from modules.evaluate import evaluate_model
 from modules.focal_loss import FocalLoss
-#from modules.utils import set_memory_growth
 
-#os.environ['TF_XLA_FLAGS'] = '--tf_xla_enable_xla_devices'
-#set_memory_growth()
+import autogluon as ag
+
+cfg = {}
+NWORKER = 2
 
 def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--c', type=str, default='./configs/res50.yaml', help='config path')
     parser.add_argument("--n", type=int, default=2, help="the number of workers")
     return parser.parse_args()
-
-def save_model(model, save_path, name, iter_cnt):
-    save_name = os.path.join(save_path, name + '_' + str(iter_cnt) + '.pth')
-    torch.save(model.module.state_dict(), save_name)
-    return save_name
-
-def main(cfg, n_workers=2):
+    
+def main(args, reporter):
     #setup device
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device('cpu')
-    #setup path
-    save_path = os.path.join(os.getcwd(), "save", cfg['model_name'])
-    ckpt_path = os.path.join(save_path, "ckpt")
-    log_path  = os.path.join(save_path, "log")
-    if not os.path.exists(ckpt_path): os.makedirs(ckpt_path)
-    if not os.path.exists(log_path): os.makedirs(log_path)
     #train data
     train_dataset = TrainDataset(data_list_file=cfg['train_data'],
                        is_training=True,
@@ -46,7 +36,7 @@ def main(cfg, n_workers=2):
     trainloader = get_DataLoader(train_dataset,
                                    batch_size=cfg['batch_size'],
                                    shuffle=True,
-                                  num_workers=n_workers)
+                                  num_workers=NWORKER)
     #valid data
     valid_set = {}
     for x in cfg['valid_data']:
@@ -54,7 +44,8 @@ def main(cfg, n_workers=2):
         valid_set[x] = get_DataLoader(valid_dataset,
                                 batch_size=cfg['batch_size'],
                                 shuffle=False,
-                                num_workers=n_workers)
+                                num_workers=NWORKER)
+        break
 
     #get backbone
     if cfg['backbone'].lower() == 'resnet50':
@@ -107,23 +98,11 @@ def main(cfg, n_workers=2):
     else:
         criterion = torch.nn.CrossEntropyLoss()
     
-    
     lr_steps = [ s for s in cfg['lr_steps']] #epochs
     scheduler = MultiStepLR(optimizer, milestones=lr_steps, gamma=0.1)
 
-    print(lr_steps)
-    #loop
-    steps_per_epoch = cfg['sample_num'] // cfg['batch_size'] + 1
-    stps = steps_per_epoch if str(cfg["step_per_save"]) == "epoch" else int(cfg['step_per_save']) 
-    max_acc = 0.
-    writer = SummaryWriter(log_path)
     for e in range(1,cfg['epoch_num']+1):
-
-        print("Epoch: {}/{} \n-LR: {:.6f} \n-Train...".format(e,cfg['epoch_num'], scheduler.get_last_lr()[0]))
         backbone.train()
-        total_loss = 0.0
-        num_batchs = 0
-        num_correct = 0.
         for data in tqdm.tqdm(iter(trainloader)):
             inputs, label = data
             inputs = inputs.to(device)
@@ -136,49 +115,66 @@ def main(cfg, n_workers=2):
             if len(logits) == 2: 
                 loss = criterion(logits[0], label) + logits[1]
                 logits = logits[0]
-            else: loss = criterion(logits, label)
-            
-            #update metrics
-            total_loss += loss.item()
-            num_batchs += 1
-            indices = torch.max(logits, 1)[1]
-            num_correct += torch.sum(torch.eq(indices, label).view(-1)).item()
-            
+            else: loss = criterion(logits, label) 
             #update weights
             optimizer.zero_grad()
             loss.backward()
             torch.nn.utils.clip_grad_norm_(backbone.parameters(), 5)
             optimizer.step()
-            
-            if num_batchs % stps == 0:    # every 1000 mini-batches...
-                # ...log the running loss
-                writer.add_scalar('training loss',
-                            total_loss / num_batchs,
-                            (e-1) * len(trainloader) + num_batchs)
-                writer.add_scalar('learning rate',
-                            scheduler.get_last_lr()[0],
-                            (e-1) * len(trainloader) + num_batchs)
         scheduler.step() 
-        save_model(backbone,  ckpt_path, cfg['model_name'], e) 
-        #test
-        backbone.eval()
-        print("-Validate...") 
-        with torch.no_grad():
-            for x in cfg['valid_data']:
-                acc, _ , eer = evaluate_model(backbone, valid_set[x], device=device)
-                acc = max(acc)
-                writer.add_scalar('verification accuracy _ {} dataset'.format(x), acc, e * num_batchs)
-                writer.add_scalar('verification EER _ {} dataset'.format(x), eer, e * num_batchs)
-                print('\t--{}\'s accuracy: {:.5f}'.format(x,acc))
-                
-        print("\t--Train Loss: {:.5f} \n\t--Train accuracy: {:.5f}".format(total_loss / num_batchs, num_correct / cfg['sample_num']))
+    #test
+    backbone.eval()
+    acc = 0
+    with torch.no_grad():
+        
+        for x in cfg['valid_data']:
+            accs, _, _ = evaluate_model(backbone, valid_set[x], device=device)
+            acc = max(accs)
+            break
+            
+    if reporter is not None:
+            # reporter enables communications with autogluon
+        reporter(epoch=epoch+1, accuracy=acc)
+    else:
+        assert False, "hmmmm"
 
-    writer.close()
+@ag.args(
+    epochs=5,
+    base_lr=ag.Real(1e-4, 1e-2, log=True),
+    num_workers=NWORKER,
+    optimizer=ag.Choice("SGD", "Adam"),
+    drop_ratio=ag.Real(0.35, 0.6),
+    logit_scale = ag.Choice(30, 63)
+)    
+def train_finetune(args, reporter):
+    #fixed params
+    cfg['epoch_num'] = args.epochs
+    
+    #estimator
+    cfg['logits_scale'] = args.logit_scale
+    cfg['optimizer']    = args.optimizer
+    cfg['base_lr']      = args.base_lr
+    cfg['drop_ratio']   = args.drop_ratio
+    #config['batch_size']   = 128
+    cfg['lr_steps']     = [9, 14]
+    #run
+    acc = main(args ,reporter)
+    return acc
+    
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     args = get_args()
     with open(args.c, 'r') as file:
-        config = yaml.load(file, Loader=yaml.Loader)
-    print(config)
-    main(config ,n_workers=args.n)
+        cfg = yaml.load(file, Loader=yaml.Loader)
+    NWORKER = args.n
+    
+    myscheduler = ag.scheduler.FIFOScheduler(train_finetune,
+                                         resource={'num_cpus': 4, 'num_gpus': 1},
+                                         num_trials=8,
+                                         time_attr='epoch',
+                                         reward_attr="accuracy")
+    myscheduler.run()
+    myscheduler.join_jobs()
+    print('The Best Configuration and Accuracy are: {}, {}'.format(myscheduler.get_best_config(),
+                                                               myscheduler.get_best_reward()))

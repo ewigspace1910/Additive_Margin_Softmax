@@ -35,12 +35,23 @@ def calculate_roc(thresholds, dists, actual_issame):
     for i, thres in enumerate(thresholds):
         tprs[i], fprs[i], accuracy[i] = calculate_accuracy(thres, dists, actual_issame)
     
-    best_thresholds = thresholds[np.argmax(accuracy)]
+    best_threshold = thresholds[np.argmax(accuracy)]
     #tpr = np.mean(tprs)
     #fpr = np.mean(fprs)
-    return tprs, fprs, accuracy, best_thresholds
+    return tprs, fprs, accuracy, best_threshold
+
+
+def calculate_eer(tprs, fprs):
+    """FNR = FPR"""
+    fnrs = 1. - tprs
+    # theoretically eer from fpr and eer from fnr should be identical but they can be slightly differ in reality
+    eer_1 = fprs[np.nanargmin(np.absolute((fnrs - fprs)))]
+    eer_2 = fnrs[np.nanargmin(np.absolute((fnrs - fprs)))]
+    return (eer_1 + eer_2) / 2
+
 
 def evaluate_model(model, dataset, device=torch.device('cpu')):
+    '''return acc_array, best_threshold, err_value '''
     dists = np.array([]) #distants
     labels = np.array([]) #labels
     
@@ -66,8 +77,9 @@ def evaluate_model(model, dataset, device=torch.device('cpu')):
 
     
     thresholds = np.arange(0, 4, 0.01)
-    tpr, fpr, acc, best_thresholds = calculate_roc(thresholds, dists, labels)
-    return np.mean(acc), acc, best_thresholds
+    tprs, fprs, accs, best_threshold = calculate_roc(thresholds, dists, labels)
+    eer = calculate_eer(tprs, fprs)
+    return accs, best_threshold, eer
 
 
 def load_model(model, model_path):
