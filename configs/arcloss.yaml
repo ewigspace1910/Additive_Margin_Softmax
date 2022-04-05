@@ -28,7 +28,7 @@ lr_steps: [18, 26, 29] #epoch
 ## run params
 batch_size: 64
 init_epoch: 0
-epoch_num: 35
+epoch_num: 10
 step_per_save: 100
 # paths <SHOULD JUST CHANGE TRAIN DATA!>
 

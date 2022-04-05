@@ -81,6 +81,58 @@ def evaluate_model(model, dataset, device=torch.device('cpu')):
     eer = calculate_eer(tprs, fprs)
     return accs, best_threshold, eer
 
+def ensem_evaluate_model(list_model, dataset, device=torch.device('cpu')):
+    '''return acc_array, best_threshold, err_value '''
+    dists = [np.array([])] * len(list_model) #distants
+    labels = np.array([]) #labels
+
+    n = len(list_model) # number of models 
+    model_dists = np.array([])
+
+    for img1, img2, label in tqdm.tqdm(dataset):
+        label = label.cpu().data.numpy() == 1
+        img1 = img1.to(device)
+        img2 = img2.to(device)
+
+        for i, model in enumerate(list_model):
+
+            embds_1 = model(img1)
+            embds_2 = model(img2)
+
+            embds_1 = embds_1.cpu().data.numpy()
+            embds_2 = embds_2.cpu().data.numpy()
+
+            embds_1 = l2_norm(embds_1)
+            embds_2 = l2_norm(embds_2)
+
+            diff = np.subtract(embds_1, embds_2)
+            dist = np.sum(np.square(diff), axis=1)
+
+            dists[i] = np.hstack((dists[i], dist))
+
+        labels = np.hstack((labels, label))
+
+    dists = np.array(dists)
+
+    ensemble_w = np.array([1] * n)
+    #chage weight here
+    ensemble_dist = np.average(dists, axis=0, weights=ensemble_w)
+
+    dists = np.vstack((dists, ensemble_dist))
+
+
+    thresholds = np.arange(0, 4, 0.01)
+    accs, best_thresholds, eers = [], [], []
+
+    for i in range(0, n + 1):
+        tprs, fprs, acc, best_threshold = calculate_roc(thresholds, dists[i], labels)
+        eer = calculate_eer(tprs, fprs)
+
+        accs.append(max(acc))
+        best_thresholds.append(best_threshold)
+        eers.append(eer)
+    
+    return accs, best_thresholds, eers
 
 def load_model(model, model_path):
     model_dict = model.state_dict()

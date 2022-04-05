@@ -16,3 +16,5 @@ __pycache__
 data/
 venv/
 save/
+.vscode
+.venv
