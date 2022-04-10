@@ -32,7 +32,8 @@ def save_model(model, save_path, name, iter_cnt):
 
 def main(cfg, n_workers=2):
     #setup device
-    device = torch.device("cuda") if torch.cuda.is_available() else torch.device('cpu')
+    device = torch.device("cuda") #if torch.cuda.is_available() else torch.device('cpu')
+    print(device)
     #setup path
     save_path = os.path.join(os.getcwd(), "save", cfg['model_name'])
     ckpt_path = os.path.join(save_path, "ckpt")
@@ -147,7 +148,7 @@ def main(cfg, n_workers=2):
             #update weights
             optimizer.zero_grad()
             loss.backward()
-            torch.nn.utils.clip_grad_norm_(backbone.parameters(), 5)
+            #torch.nn.utils.clip_grad_norm_(backbone.parameters(), 5)
             optimizer.step()
             
             if num_batchs % stps == 0:    # every 1000 mini-batches...
@@ -169,7 +170,7 @@ def main(cfg, n_workers=2):
                 acc = max(acc)
                 writer.add_scalar('verification accuracy _ {} dataset'.format(x), acc, e * num_batchs)
                 writer.add_scalar('verification EER _ {} dataset'.format(x), eer, e * num_batchs)
-                print('\t--{}\'s accuracy: {:.5f}'.format(x,acc))
+                print('\t--{}\'s accuracy: {:.5f} \t eer ~ {:.5f} '.format(x, acc, eer))
                 
         print("\t--Train Loss: {:.5f} \n\t--Train accuracy: {:.5f}".format(total_loss / num_batchs, num_correct / cfg['sample_num']))
 
