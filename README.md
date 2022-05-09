@@ -7,6 +7,7 @@
  4. **Li-Arcloss** *[done]*
  5. Sphereloss *[todo]*
  6. Magloss *[todo]*
+ 7. Ensemble losses
 
 ## Data Prepare
 
